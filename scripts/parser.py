@@ -15,54 +15,61 @@ from rdflib import Graph, URIRef, Literal
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("input_dir", help="directory with html files")
-    parser.add_argument("output_dir", help="directory with ntriples files")
+    parser.add_argument("work_dir", help="directory with data files")
+    parser.add_argument(
+        "--bucket_name", help="storage bucket", default="wikidata-collab-1-crawler"
+    )
     return parser.parse_args()
 
 
-def upload_blob(bucket_name, source_file, destination_blob_name):
-    storage_client = storage.Client()
-    bucket = storage_client.bucket(bucket_name)
-    blob = bucket.blob(destination_blob_name)
-    blob.upload_from_string(source_file)
+class Parser:
+    def __init__(self, args):
+        self.storage_client = storage.Client()
+        self.bucket = self.storage_client.bucket(args.bucket_name)
+        self.work_dir = args.work_dir
 
-def download_blob(bucket_name, source_blob_name, destination_file_name):
-    storage_client = storage.Client()
-    bucket = storage_client.bucket(bucket_name)
-    blob = bucket.blob(source_blob_name)
-    blob.download_to_filename(destination_file_name)
-
-def main():
-    g = Graph()
-    args = parse_args()
-    client = storage.Client()
-    bucket = client.bucket("wikidata-collab-1-crawler")
-    blobs = client.list_blobs(bucket, prefix=os.path.join(args.input_dir, "html_data"))
-    for blob in blobs:
-        path = blob.name
-        print(path)
-        print("HTML: ", path, end=" --- ")
-        data_file_path = "../tmp.html"
-        download_blob("wikidata-collab-1-crawler", path, data_file_path)
-        with open(data_file_path) as file:
-            try:
-                html = file.read()
-                jslde = JsonLdExtractor()
-                data = jslde.extract(html)
-            except Exception as e:
-                print("Extraction error")
+    def parse(self):
+        for blob in self._list_input_htmls():
+            print("HTML: ", blob.name, end=" --- ")
+            json_data = self._extract_json_data(blob)
+            if json_data is None:
                 continue
-            json_data = json.dumps(data)
-            g = Graph()
-            g.parse(data=json_data, format="json-ld")
-            if not g:
+            graph = Graph()
+            graph.parse(data=json_data, format="json-ld")
+            if not graph:
                 print("No json-ld data")
                 continue
-            g_nt = g.serialize(format="ntriples").decode("utf-8")
-            base = os.path.basename(path)
-            result_path = os.path.join(args.output_dir, "nt_data", f"{os.path.splitext(base)[0]}.nt")
-            upload_blob("wikidata-collab-1-crawler", g_nt, result_path)
+            result_path = os.path.join(
+                self.work_dir,
+                "nt_data",
+                f"{os.path.splitext(os.path.basename(blob.name))[0]}.nt",
+            )
+            self.bucket.blob(result_path).upload_from_string(
+                graph.serialize(format="ntriples").decode()
+            )
             print("OK")
+
+    def _list_input_htmls(self):
+        return self.storage_client.list_blobs(
+            self.bucket, prefix=os.path.join(self.work_dir, "html_data")
+        )
+
+    def _extract_json_data(self, blob):
+        html = blob.download_as_string().decode()
+        try:
+            jslde = JsonLdExtractor()
+            data = jslde.extract(html)
+            return json.dumps(data)
+        except Exception as e:
+            print("Extraction error")
+            return None
+
+
+def main():
+    args = parse_args()
+
+    parser = Parser(args)
+    parser.parse()
 
 
 if __name__ == "__main__":
