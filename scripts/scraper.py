@@ -15,7 +15,11 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("input_link", help="site page")
     parser.add_argument("output_dir", help="google cloud directory")
+    parser.add_argument(
+        "--bucket_name", help="storage bucket", default="wikidata-collab-1-crawler"
+    )
     return parser.parse_args()
+
 
 def upload_blob(bucket_name, source_file, destination_blob_name):
     storage_client = storage.Client()
@@ -24,26 +28,36 @@ def upload_blob(bucket_name, source_file, destination_blob_name):
 
     blob.upload_from_string(source_file)
 
-def init_state(state_path, link):
-    if not os.path.exists(state_path):
-        with open(state_path, "w") as f:
-            new_state = {
-                "saved_pages": {},
-                "new_pages": [link],
-                "counter": 0,
-            }
-            f.write(json.dumps(new_state))
-    with open(state_path) as json_file:
-        return json.load(json_file)
+
+def init_state(bucket, state_path, link):
+    state_blob = bucket.blob(state_path)
+    if not state_blob.exists():
+        return {
+            "saved_pages": {},
+            "new_pages": [link],
+            "counter": 0,
+        }
+    return json.loads(state_blob.download_as_string().decode())
+
+
+def save_state(bucket, state_path, state):
+    state_blob = bucket.blob(state_path)
+    state_blob.upload_from_string(json.dumps(state))
+
 
 def update_links_log(file_name, page_link, dir):
     with open(f"../{dir}.txt", "a") as log:
         log.write(f"{file_name} {page_link}\n")
 
+
 def main():
     args = parse_args()
-    state_path = f"../{args.output_dir}_state.json"
-    state = init_state(state_path, args.input_link)
+
+    state_path = os.path.join(args.output_dir, "state.json")
+    storage_client = storage.Client()
+    bucket = storage_client.bucket(args.bucket_name)
+
+    state = init_state(bucket, state_path, args.input_link)
     while state["new_pages"]:
         page = state["new_pages"].pop()
         print("CURRENT_PAGE:", page)
@@ -52,8 +66,7 @@ def main():
 
         state["saved_pages"][page] = file_name
         state["counter"] += 1
-        with open(state_path, 'w') as json_file:
-            json.dump(state, json_file)
+        save_state(bucket, state_path, state)
 
         try:
             response = requests.get(page, timeout=60)
@@ -63,9 +76,9 @@ def main():
             print(e)
             continue
         if not response.ok:
-             # print("Bad request")
-             continue
-        content_type = response.headers.get('Content-Type')
+            # print("Bad request")
+            continue
+        content_type = response.headers.get("Content-Type")
         # print("###", content_type)
         if content_type and not content_type.startswith("text/html"):
             # print("Wrong format: ", content_type)
@@ -74,7 +87,6 @@ def main():
         upload_blob("wikidata-collab-1-crawler", response.text, output_file)
         update_links_log(file_name, page, args.output_dir)
         soup = BeautifulSoup(response.text, "html.parser")
-
 
         for tag in soup.findAll("a"):
             if "href" in str(tag):
@@ -91,7 +103,7 @@ def main():
                 link_url = link_url._replace(
                     scheme=link_url.scheme or page_url.scheme,
                     netloc=link_url.netloc or page_url.netloc,
-                    path=os.path.normpath(new_path)
+                    path=os.path.normpath(new_path),
                 )
                 if link_url.netloc != page_url.netloc:
                     # print(f"    Link to different site: {link_url.netloc} != {page_url.netloc}")
