@@ -6,6 +6,7 @@ import requests
 import urllib.request
 import time
 import argparse
+from selenium import webdriver
 from google.cloud import storage
 from urllib.parse import urlparse
 from bs4 import BeautifulSoup
@@ -18,6 +19,9 @@ def parse_args():
     parser.add_argument("work_dir", help="google cloud directory")
     parser.add_argument(
         "--bucket_name", help="storage bucket", default="wikidata-collab-1-crawler"
+    )
+    parser.add_argument(
+        "--chromedriver_path", help="chromedriver full path", default="/home/elizusha/soft/chromedriver/chromedriver"
     )
     parser.add_argument(
         "--start_new", action="store_true", default=False, help="site page"
@@ -86,6 +90,7 @@ class Scraper:
         self.work_dir = args.work_dir
         self.start_link = args.start_link
         self.start_new = args.start_new
+        self.chromedriver_path = args.chromedriver_path
 
     @property
     def state_path(self):
@@ -159,8 +164,16 @@ class Scraper:
                     site_error = f"Wrong format: {content_type}"
                 else:
                     file_name = state.get_next_filename()
-                    self._upload_blob(response.text, file_name)
-                    urls = self.extract_urls(response.text, page)
+                    # === selenium ===
+                    options = webdriver.ChromeOptions()
+                    options.add_argument("headless")
+                    driver = webdriver.Chrome(self.chromedriver_path, options=options)
+                    driver.get(page)
+                    source = driver.page_source
+                    driver.quit()
+                    self._upload_blob(source, file_name)
+                    urls = self.extract_urls(source, page)
+                    # ================
 
             state.add_processed_url(
                 page,
