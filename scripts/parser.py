@@ -21,6 +21,17 @@ def parse_args():
     )
     return parser.parse_args()
 
+def strip_strings(data):
+  if isinstance(data, str):
+    return data.strip()
+  if isinstance(data, list):
+    return [ strip_strings(element) for element in data ]
+  if isinstance(data, dict):
+    return {
+      key.strip(): strip_strings(value)
+      for key, value in data.items()
+    }
+  return data
 
 class Parser:
     def __init__(self, args):
@@ -35,6 +46,7 @@ class Parser:
             if json_data is None:
                 continue
             graph = Graph()
+
             graph.parse(data=json_data, format="json-ld")
             if not graph:
                 print("No json-ld data")
@@ -49,6 +61,8 @@ class Parser:
             )
             print("OK")
 
+
+
     def _list_input_htmls(self):
         return self.storage_client.list_blobs(
             self.bucket, prefix=os.path.join(self.work_dir, "html_data")
@@ -59,10 +73,11 @@ class Parser:
         try:
             jslde = JsonLdExtractor()
             data = jslde.extract(html)
-            return json.dumps(data)
+            return json.dumps(strip_strings(data))
         except Exception as e:
             print("Extraction error")
             return None
+
 
 
 def main():

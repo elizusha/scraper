@@ -6,6 +6,7 @@ import requests
 import urllib.request
 import time
 import argparse
+import urllib.robotparser
 from selenium import webdriver
 from google.cloud import storage
 from urllib.parse import urlparse
@@ -143,13 +144,34 @@ class Scraper:
 
         blob.upload_from_string(source_file)
 
+    def _cteate_robotparser(self):
+        link_url = urlparse(self.start_link)
+        robots_url = link_url._replace(
+            path="robots.txt",
+            params='',
+            query='',
+            fragment=''
+            )
+        rp = urllib.robotparser.RobotFileParser()
+        rp.set_url(robots_url.geturl())
+        rp.read()
+        return rp
+
+
     def scrape(self):
         state = self._init_state()
+        rp = self._cteate_robotparser()
         while state.page_queue:
             page = state.page_queue.pop()
             print("CURRENT_PAGE:", page)
-
-            response = requests.get(page, timeout=60)
+            if not rp.can_fetch("*", page):
+                print("### Disallow robots.txt")
+                continue
+            try:
+                response = requests.get(page, timeout=60)
+            except Exception as e:
+                print("### Site error")
+                continue
             time.sleep(1)
 
             file_name = None
