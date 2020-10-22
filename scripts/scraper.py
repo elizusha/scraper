@@ -170,15 +170,15 @@ class Scraper:
             try:
                 response = requests.get(page, timeout=60)
             except Exception as e:
-                print("### Site error")
-                continue
+                print(f"### Site error:\n{e}")
+                response = None
             time.sleep(1)
 
             file_name = None
             site_error = None
             urls = []
 
-            if response.ok:
+            if response and response.ok:
                 content_type = response.headers.get("Content-Type")
                 # print("###", content_type)
                 if content_type and not content_type.startswith("text/html"):
