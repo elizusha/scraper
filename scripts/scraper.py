@@ -149,10 +149,6 @@ class Scraper:
         robots_url = link_url._replace(
             path="robots.txt", params="", query="", fragment=""
         )
-        print(robots_url.geturl())
-        response = requests.get(robots_url.geturl(), timeout=60)
-        print("#############")
-        print(response.content)
         rp = urllib.robotparser.RobotFileParser()
         rp.set_url(robots_url.geturl())
         rp.read()
