@@ -12,6 +12,7 @@ from google.cloud import storage
 from urllib.parse import urlparse
 from bs4 import BeautifulSoup
 from typing import NamedTuple, List, Dict, Optional, Any
+from urllib.parse import urlencode, parse_qsl
 
 
 def parse_args():
@@ -124,11 +125,13 @@ class Scraper:
                 new_path = os.path.join(page_url.path, link_url.path)
             else:
                 new_path = link_url.path
+            if link_url.query:
+                print("###", link_url.query)
             link_url = link_url._replace(
                 scheme=link_url.scheme or page_url.scheme,
                 netloc=link_url.netloc or page_url.netloc,
                 path=os.path.normpath(new_path),
-                query=urllib.parse.quote(link_url.query),
+                query=urlencode(parse_qsl(link_url.query)),
             )
             if link_url.netloc != page_url.netloc:
                 # print(f"### Link to different site: {link_url.netloc} != {page_url.netloc}")
