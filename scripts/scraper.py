@@ -27,7 +27,7 @@ def parse_args():
         default="/home/elizusha/soft/chromedriver/chromedriver",
     )
     parser.add_argument(
-        "--start_new", action="store_true", default=False, help="site page"
+        "--start_new", action="store_true", default=False, help="ignore status.json and start scraper"
     )
     return parser.parse_args()
 
@@ -164,7 +164,7 @@ class Scraper:
                 print("### Disallow robots.txt")
                 continue
             try:
-                response = requests.get(page, timeout=60)
+                response = requests.get(page, headers={'Accept': 'text/html'}, timeout=60)
             except Exception as e:
                 print(f"### Site error:\n{e}")
                 response = None
