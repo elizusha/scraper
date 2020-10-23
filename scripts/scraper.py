@@ -125,8 +125,6 @@ class Scraper:
                 new_path = os.path.join(page_url.path, link_url.path)
             else:
                 new_path = link_url.path
-            if link_url.query:
-                print("###", link_url.query)
             link_url = link_url._replace(
                 scheme=link_url.scheme or page_url.scheme,
                 netloc=link_url.netloc or page_url.netloc,
