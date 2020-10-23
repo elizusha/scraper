@@ -5,6 +5,7 @@ import json
 import glob
 import os
 import argparse
+import urllib
 from google.cloud import storage
 from extruct.jsonld import JsonLdExtractor
 from rdflib.plugin import register, Parser
@@ -24,6 +25,8 @@ def parse_args():
 
 def strip_strings(data):
     if isinstance(data, str):
+        if data.startswith("http"):
+            return urllib.parse.urlunparse(urllib.parse.urlparse(data))
         return data.strip()
     if isinstance(data, list):
         return [strip_strings(element) for element in data]
@@ -51,8 +54,7 @@ class Parser:
             }
         else:
             url_by_filename = {
-                value: url
-                for url, value in state_json["saved_pages"].items()
+                value: url for url, value in state_json["saved_pages"].items()
             }
         return url_by_filename
 
@@ -88,13 +90,9 @@ class Parser:
 
     def _extract_json_data(self, blob):
         html = blob.download_as_string().decode()
-        try:
-            jslde = JsonLdExtractor()
-            data = jslde.extract(html)
-            return json.dumps(strip_strings(data))
-        except Exception as e:
-            print("Extraction error")
-            return None
+        jslde = JsonLdExtractor()
+        data = jslde.extract(html)
+        return json.dumps(strip_strings(data))
 
 
 def main():

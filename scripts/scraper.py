@@ -22,7 +22,9 @@ def parse_args():
         "--bucket_name", help="storage bucket", default="wikidata-collab-1-crawler"
     )
     parser.add_argument(
-        "--chromedriver_path", help="chromedriver full path", default="/home/elizusha/soft/chromedriver/chromedriver"
+        "--chromedriver_path",
+        help="chromedriver full path",
+        default="/home/elizusha/soft/chromedriver/chromedriver",
     )
     parser.add_argument(
         "--start_new", action="store_true", default=False, help="site page"
@@ -80,7 +82,6 @@ class ScraperState:
     def add_urls_to_queue(self, urls: List[str]) -> None:
         for url in urls:
             if url not in self.processed_pages and url not in self.page_queue:
-                # print(" New link:", link)
                 self.page_queue.append(url)
 
 
@@ -115,10 +116,9 @@ class Scraper:
             if "href" not in str(tag):
                 continue
             link = tag["href"]
-            # print("#", link)
             link_url = urlparse(link)
             if link_url.scheme not in ["http", "https", ""]:
-                # print(f"Link to different site: {link_url.scheme} != {page_url.scheme}")
+                # print(f"### Link to different site: {link_url.scheme} != {page_url.scheme}")
                 continue
             if page_url.path and page_url.path[-1] == "/":
                 new_path = os.path.join(page_url.path, link_url.path)
@@ -128,13 +128,13 @@ class Scraper:
                 scheme=link_url.scheme or page_url.scheme,
                 netloc=link_url.netloc or page_url.netloc,
                 path=os.path.normpath(new_path),
+                query=urllib.parse.quote(link_url.query),
             )
             if link_url.netloc != page_url.netloc:
-                # print(f"    Link to different site: {link_url.netloc} != {page_url.netloc}")
+                # print(f"### Link to different site: {link_url.netloc} != {page_url.netloc}")
                 continue
             url = link_url.geturl()
             urls.append(url)
-            # print("NORMALIZED_LINK:", link)
         return urls
 
     def _upload_blob(self, source_file, destination_file_name):
@@ -147,16 +147,16 @@ class Scraper:
     def _cteate_robotparser(self):
         link_url = urlparse(self.start_link)
         robots_url = link_url._replace(
-            path="robots.txt",
-            params='',
-            query='',
-            fragment=''
-            )
+            path="robots.txt", params="", query="", fragment=""
+        )
+        print(robots_url.geturl())
+        response = requests.get(robots_url.geturl(), timeout=60)
+        print("#############")
+        print(response.content)
         rp = urllib.robotparser.RobotFileParser()
         rp.set_url(robots_url.geturl())
         rp.read()
         return rp
-
 
     def scrape(self):
         state = self._init_state()
@@ -164,7 +164,7 @@ class Scraper:
         while state.page_queue:
             page = state.page_queue.pop()
             print("CURRENT_PAGE:", page)
-            if not rp.can_fetch("*", page):
+            if not rp or not rp.can_fetch("*", page):
                 print("### Disallow robots.txt")
                 continue
             try:
@@ -182,7 +182,7 @@ class Scraper:
                 content_type = response.headers.get("Content-Type")
                 # print("###", content_type)
                 if content_type and not content_type.startswith("text/html"):
-                    # print("Wrong format: ", content_type)
+                    # print("### Wrong format: ", content_type)
                     site_error = f"Wrong format: {content_type}"
                 else:
                     file_name = state.get_next_filename()
@@ -201,7 +201,7 @@ class Scraper:
                 page,
                 ScrapedPageInfo(
                     file_name=file_name,
-                    status_code=response.status_code,
+                    status_code=response.status_code if response else -1,
                     site_error=site_error,
                 ),
             )
