@@ -114,7 +114,7 @@ class Scraper:
         page_url = urlparse(page_str)
         soup = BeautifulSoup(text, "html.parser")
         for tag in soup.findAll("a"):
-            if "href" not in str(tag):
+            if "href" not in tag.attrs:
                 continue
             link = tag["href"]
             link_url = urlparse(link)
