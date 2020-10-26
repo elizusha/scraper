@@ -6,6 +6,7 @@ import requests
 import urllib.request
 import time
 import argparse
+import logging
 import urllib.robotparser
 from selenium import webdriver
 from google.cloud import storage
@@ -117,9 +118,10 @@ class Scraper:
             if "href" not in tag.attrs:
                 continue
             link = tag["href"]
+            logging.info(f"New link: {link}")
             link_url = urlparse(link)
             if link_url.scheme not in ["http", "https", ""]:
-                # print(f"### Link to different site: {link_url.scheme} != {page_url.scheme}")
+                logging.warning(f"Link to different site: {link_url.scheme} != {page_url.scheme}")
                 continue
             if page_url.path and page_url.path[-1] == "/":
                 new_path = os.path.join(page_url.path, link_url.path)
@@ -132,7 +134,7 @@ class Scraper:
                 query=urlencode(parse_qsl(link_url.query)),
             )
             if link_url.netloc != page_url.netloc:
-                # print(f"### Link to different site: {link_url.netloc} != {page_url.netloc}")
+                logging.warning(f"Link to different site: {link_url.netloc} != {page_url.netloc}")
                 continue
             url = link_url.geturl()
             urls.append(url)
@@ -161,13 +163,14 @@ class Scraper:
         while state.page_queue:
             page = state.page_queue.pop()
             print("CURRENT_PAGE:", page)
+            logging.info(f"CURRENT_PAGE: {page}")
             if not rp or not rp.can_fetch("*", page):
-                print("### Disallow robots.txt")
+                logging.warning("Disallow robots.txt")
                 continue
             try:
                 response = requests.get(page, headers={'Accept': 'text/html'}, timeout=60)
             except Exception as e:
-                print(f"### Site error:\n{e}")
+                logging.error(f"Site error:\n{e}")
                 response = None
             time.sleep(1)
 
@@ -177,13 +180,11 @@ class Scraper:
 
             if response and response.ok:
                 content_type = response.headers.get("Content-Type")
-                # print("###", content_type)
                 if content_type and not content_type.startswith("text/html"):
-                    # print("### Wrong format: ", content_type)
+                    logging.warning(f"Wrong format: {content_type}")
                     site_error = f"Wrong format: {content_type}"
                 else:
                     file_name = state.get_next_filename()
-                    # === selenium ===
                     options = webdriver.ChromeOptions()
                     options.add_argument("headless")
                     driver = webdriver.Chrome(self.chromedriver_path, options=options)
@@ -192,7 +193,6 @@ class Scraper:
                     driver.quit()
                     self._upload_blob(source, file_name)
                     urls = self.extract_urls(source, page)
-                    # ================
 
             state.add_processed_url(
                 page,
@@ -208,7 +208,8 @@ class Scraper:
 
 def main():
     args = parse_args()
-
+    FORMAT = '%(asctime)-15s %(levelname)s: %(message)s'
+    logging.basicConfig(filename=f'../scraper_{args.work_dir}.log', format=FORMAT, level=logging.INFO)
     scraper = Scraper(args)
     scraper.scrape()
 

@@ -13,7 +13,6 @@ from rdflib.plugin import register, Parser
 register("json-ld", Parser, "rdflib_jsonld.parser", "JsonLDParser")
 from rdflib import Graph, URIRef, Literal, ConjunctiveGraph
 
-
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("work_dir", help="directory with data files")
@@ -97,7 +96,6 @@ class Parser:
 
 def main():
     args = parse_args()
-
     parser = Parser(args)
     parser.parse()
 
