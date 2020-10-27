@@ -183,6 +183,9 @@ class Scraper:
                 if content_type and not content_type.startswith("text/html"):
                     logging.warning(f"Wrong format: {content_type}")
                     site_error = f"Wrong format: {content_type}"
+                elif not content_type:
+                    logging.warning(f"Wrong format: no content type")
+                    site_error = f"Wrong format: no content type"
                 else:
                     file_name = state.get_next_filename()
                     options = webdriver.ChromeOptions()
