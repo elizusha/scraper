@@ -205,6 +205,7 @@ class Scraper:
                     site_error=site_error,
                 ),
             )
+            print(f"htmls saved: {state.counter}")
             state.add_urls_to_queue(urls)
             self._save_state(state)
 
