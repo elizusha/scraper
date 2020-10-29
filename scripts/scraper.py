@@ -14,6 +14,7 @@ from urllib.parse import urlparse
 from bs4 import BeautifulSoup
 from typing import NamedTuple, List, Dict, Optional, Any
 from urllib.parse import urlencode, parse_qsl
+from os.path import join, normpath
 
 
 def parse_args():
@@ -98,7 +99,7 @@ class Scraper:
 
     @property
     def state_path(self):
-        return os.path.join(self.work_dir, "state.json")
+        return join(self.work_dir, "state.json")
 
     def _init_state(self) -> ScraperState:
         state_blob = self.bucket.blob(self.state_path)
@@ -124,13 +125,13 @@ class Scraper:
                 logging.warning(f"Link to different site: {link_url.scheme} != {page_url.scheme}")
                 continue
             if page_url.path and page_url.path[-1] == "/":
-                new_path = os.path.join(page_url.path, link_url.path)
+                new_path = join(page_url.path, link_url.path)
             else:
                 new_path = link_url.path
             link_url = link_url._replace(
                 scheme=link_url.scheme or page_url.scheme,
                 netloc=link_url.netloc or page_url.netloc,
-                path=os.path.normpath(new_path),
+                path=normpath(new_path),
                 query=urlencode(parse_qsl(link_url.query)),
             )
             if link_url.netloc != page_url.netloc:
@@ -142,7 +143,7 @@ class Scraper:
 
     def _upload_blob(self, source_file, destination_file_name):
         blob = self.bucket.blob(
-            os.path.join(self.work_dir, "html_data", destination_file_name)
+            join(self.work_dir, "html_data", destination_file_name)
         )
 
         blob.upload_from_string(source_file)

@@ -3,12 +3,13 @@
 import rdflib
 import json
 import glob
-import os
 import argparse
 import urllib
 from google.cloud import storage
+from urllib.parse import urlparse
 from extruct.jsonld import JsonLdExtractor
 from rdflib.plugin import register, Parser
+from os.path import basename, join, splitext
 
 register("json-ld", Parser, "rdflib_jsonld.parser", "JsonLDParser")
 from rdflib import Graph, URIRef, Literal, ConjunctiveGraph
@@ -18,6 +19,9 @@ def parse_args():
     parser.add_argument("work_dir", help="directory with data files")
     parser.add_argument(
         "--bucket_name", help="storage bucket", default="wikidata-collab-1-crawler"
+    )
+    parser.add_argument(
+        "--common_graph", action="store_true", default=False, help="one graph name for the whole site"
     )
     return parser.parse_args()
 
@@ -40,9 +44,10 @@ class Parser:
         self.bucket = self.storage_client.bucket(args.bucket_name)
         self.work_dir = args.work_dir
         self.page_urls = self._get_page_urls()
+        self.common_graph = args.common_graph
 
     def _get_page_urls(self):
-        blob = self.bucket.blob(os.path.join(self.work_dir, "state.json"))
+        blob = self.bucket.blob(join(self.work_dir, "state.json"))
         json_string = blob.download_as_string().decode()
         state_json = json.loads(json_string)
         if "processed_pages" in state_json:
@@ -60,22 +65,32 @@ class Parser:
     def parse(self):
         for blob in self._list_input_htmls():
             print("HTML: ", blob.name, end=" --- ")
-            json_data = self._extract_json_data(blob)
+            try:
+                json_data = self._extract_json_data(blob)
+            except Exception:
+                print("Extraction error")
+                continue
             if json_data is None:
                 continue
             graph = ConjunctiveGraph(store="IOMemory")
+            if self.common_graph:
+                public_id = urlparse(self.page_urls[basename(blob.name)]).netloc
+                data_directory = "nq_data_common_graph"
+            else:
+                public_id = self.page_urls[basename(blob.name)]
+                data_directory = "nq_data"
             graph.parse(
                 data=json_data,
                 format="json-ld",
-                publicID=self.page_urls[os.path.basename(blob.name)],
+                publicID=public_id,
             )
             if not graph:
                 print("No json-ld data")
                 continue
-            result_path = os.path.join(
+            result_path = join(
                 self.work_dir,
-                "nq_data",
-                f"{os.path.splitext(os.path.basename(blob.name))[0]}.nq",
+                data_directory,
+                f"{splitext(basename(blob.name))[0]}.nq",
             )
             self.bucket.blob(result_path).upload_from_string(
                 graph.serialize(format="nquads").decode()
@@ -84,7 +99,7 @@ class Parser:
 
     def _list_input_htmls(self):
         return self.storage_client.list_blobs(
-            self.bucket, prefix=os.path.join(self.work_dir, "html_data")
+            self.bucket, prefix=join(self.work_dir, "html_data")
         )
 
     def _extract_json_data(self, blob):
