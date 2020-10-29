@@ -74,7 +74,7 @@ class Parser:
                 continue
             graph = ConjunctiveGraph(store="IOMemory")
             if self.common_graph:
-                public_id = urlparse(self.page_urls[basename(blob.name)]).netloc
+                public_id = urlparse(self.page_urls["1.html"]).netloc
                 data_directory = "nq_data_common_graph"
             else:
                 public_id = self.page_urls[basename(blob.name)]
