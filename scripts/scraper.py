@@ -30,7 +30,10 @@ def parse_args():
         default="/home/elizusha/soft/chromedriver/chromedriver",
     )
     parser.add_argument(
-        "--start_new", action="store_true", default=False, help="ignore status.json and start scraper"
+        "--start_new",
+        action="store_true",
+        default=False,
+        help="ignore status.json and start scraper",
     )
     return parser.parse_args()
 
@@ -118,11 +121,13 @@ class Scraper:
         for tag in soup.findAll("a"):
             if "href" not in tag.attrs:
                 continue
-            link = tag["href"]
+            link = tag["href"].strip()
             logging.info(f"New link: {link}")
             link_url = urlparse(link)
             if link_url.scheme not in ["http", "https", ""]:
-                logging.warning(f"Link to different site: {link_url.scheme} != {page_url.scheme}")
+                logging.warning(
+                    f"Link to different site: {link_url.scheme} != {page_url.scheme}"
+                )
                 continue
             if page_url.path and page_url.path[-1] == "/":
                 new_path = join(page_url.path, link_url.path)
@@ -135,16 +140,16 @@ class Scraper:
                 query=urlencode(parse_qsl(link_url.query)),
             )
             if link_url.netloc != page_url.netloc:
-                logging.warning(f"Link to different site: {link_url.netloc} != {page_url.netloc}")
+                logging.warning(
+                    f"Link to different site: {link_url.netloc} != {page_url.netloc}"
+                )
                 continue
             url = link_url.geturl()
             urls.append(url)
         return urls
 
     def _upload_blob(self, source_file, destination_file_name):
-        blob = self.bucket.blob(
-            join(self.work_dir, "html_data", destination_file_name)
-        )
+        blob = self.bucket.blob(join(self.work_dir, "html_data", destination_file_name))
 
         blob.upload_from_string(source_file)
 
@@ -169,7 +174,9 @@ class Scraper:
                 logging.warning("Disallow robots.txt")
                 continue
             try:
-                response = requests.get(page, headers={'Accept': 'text/html'}, timeout=60)
+                response = requests.get(
+                    page, headers={"Accept": "text/html"}, timeout=60
+                )
             except Exception as e:
                 logging.error(f"Site error:\n{e}")
                 response = None
@@ -213,8 +220,10 @@ class Scraper:
 
 def main():
     args = parse_args()
-    FORMAT = '%(asctime)-15s %(levelname)s: %(message)s'
-    logging.basicConfig(filename=f'../scraper_{args.work_dir}.log', format=FORMAT, level=logging.INFO)
+    FORMAT = "%(asctime)-15s %(levelname)s: %(message)s"
+    logging.basicConfig(
+        filename=f"../scraper_{args.work_dir}.log", format=FORMAT, level=logging.INFO
+    )
     scraper = Scraper(args)
     scraper.scrape()
 

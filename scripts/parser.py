@@ -14,6 +14,7 @@ from os.path import basename, join, splitext
 register("json-ld", Parser, "rdflib_jsonld.parser", "JsonLDParser")
 from rdflib import Graph, URIRef, Literal, ConjunctiveGraph
 
+
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("work_dir", help="directory with data files")
@@ -21,7 +22,10 @@ def parse_args():
         "--bucket_name", help="storage bucket", default="wikidata-collab-1-crawler"
     )
     parser.add_argument(
-        "--common_graph", action="store_true", default=False, help="one graph name for the whole site"
+        "--common_graph",
+        action="store_true",
+        default=False,
+        help="one graph name for the whole site",
     )
     return parser.parse_args()
 
@@ -71,10 +75,15 @@ class Parser:
                 print("Extraction error")
                 continue
             if json_data is None:
+                print("No json data")
                 continue
             graph = ConjunctiveGraph(store="IOMemory")
             if self.common_graph:
-                public_id = urlparse(self.page_urls["1.html"]).netloc
+                public_id = (
+                    urlparse(self.page_urls["1.html"])._replace(
+                        path="", params="", query="", fragment=""
+                    )
+                ).geturl()
                 data_directory = "nq_data_common_graph"
             else:
                 public_id = self.page_urls[basename(blob.name)]
@@ -92,9 +101,12 @@ class Parser:
                 data_directory,
                 f"{splitext(basename(blob.name))[0]}.nq",
             )
-            self.bucket.blob(result_path).upload_from_string(
-                graph.serialize(format="nquads").decode()
-            )
+            try:
+                self.bucket.blob(result_path).upload_from_string(
+                    graph.serialize(format="nquads").decode()
+                )
+            except Exception:
+                print("Extraction error")
             print("OK")
 
     def _list_input_htmls(self):
