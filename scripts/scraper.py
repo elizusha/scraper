@@ -174,7 +174,7 @@ class Scraper:
                 logging.warning("Disallow robots.txt")
                 continue
             try:
-                response = requests.get(
+                response = requests.head(
                     page, headers={"Accept": "text/html"}, timeout=60
                 )
             except Exception as e:
