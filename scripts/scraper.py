@@ -216,6 +216,7 @@ class Scraper:
             print(f"htmls saved: {state.counter}")
             state.add_urls_to_queue(urls)
             self._save_state(state)
+        self._save_state(state)
 
 
 def main():
