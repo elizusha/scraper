@@ -80,14 +80,25 @@ class Parser:
             graph = ConjunctiveGraph(store="IOMemory")
             if self.common_graph:
                 public_id = (
-                    urlparse(self.page_urls["1.html"])._replace(
-                        path="", params="", query="", fragment=""
-                    )
-                ).geturl()
+                    ""
+                    if "1.html" not in self.page_urls
+                    else (
+                        urlparse(self.page_urls["1.html"])._replace(
+                            path="", params="", query="", fragment=""
+                        )
+                    ).geturl()
+                )
                 data_directory = "nq_data_common_graph"
             else:
-                public_id = self.page_urls[basename(blob.name)]
+                public_id = (
+                    ""
+                    if basename(blob.name) not in self.page_urls
+                    else self.page_urls[basename(blob.name)]
+                )
                 data_directory = "nq_data"
+            if not public_id:
+                print("File not found")
+                continue
             graph.parse(
                 data=json_data,
                 format="json-ld",
