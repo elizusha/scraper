@@ -35,6 +35,12 @@ def parse_args():
         default=False,
         help="ignore status.json and start scraper",
     )
+    parser.add_argument(
+        "--remove_fragments",
+        action="store_true",
+        default=False,
+        help="remove fragments from url",
+    )
     return parser.parse_args()
 
 
@@ -99,6 +105,7 @@ class Scraper:
         self.start_link = args.start_link
         self.start_new = args.start_new
         self.chromedriver_path = args.chromedriver_path
+        self.remove_fragments = args.remove_fragments
 
     @property
     def state_path(self):
@@ -138,6 +145,7 @@ class Scraper:
                 netloc=link_url.netloc or page_url.netloc,
                 path=normpath(new_path),
                 query=urlencode(parse_qsl(link_url.query)),
+                fragment="" if self.remove_fragments else link_url.fragment
             )
             if link_url.netloc != page_url.netloc:
                 logging.warning(

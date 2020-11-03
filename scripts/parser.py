@@ -58,7 +58,7 @@ class Parser:
             url_by_filename = {
                 value["file_name"]: url
                 for url, value in state_json["processed_pages"].items()
-                if value["status_code"] == 200 and value["file_name"]
+                if value["status_code"] < 400 and value["file_name"]
             }
         else:
             url_by_filename = {
