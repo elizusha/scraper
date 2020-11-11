@@ -10,10 +10,9 @@ import logging
 import urllib.robotparser
 from selenium import webdriver
 from google.cloud import storage
-from urllib.parse import urlparse
 from bs4 import BeautifulSoup
 from typing import NamedTuple, List, Dict, Optional, Any
-from urllib.parse import urlencode, parse_qsl
+from urllib.parse import urlparse, urlencode, parse_qsl
 from os.path import join, normpath
 
 
@@ -28,6 +27,11 @@ def parse_args():
         "--chromedriver_path",
         help="chromedriver full path",
         default="/home/elizusha/soft/chromedriver/chromedriver",
+    )
+    parser.add_argument(
+        "--max_url_length",
+        help="max url length",
+        default="300",
     )
     parser.add_argument(
         "--start_new",
@@ -106,6 +110,7 @@ class Scraper:
         self.start_new = args.start_new
         self.chromedriver_path = args.chromedriver_path
         self.remove_fragments = args.remove_fragments
+        self.max_url_length = int(args.max_url_length)
 
     @property
     def state_path(self):
@@ -129,10 +134,13 @@ class Scraper:
             if "href" not in tag.attrs:
                 continue
             link = tag["href"].strip()
-            logging.info(f"New link: {link}")
+            logging.debug(f"New link: {link}")
+            if len(link) > self.max_url_length:
+                logging.debug(f"Link is too big: {len(link)} > {self.max_url_length}")
+                continue
             link_url = urlparse(link)
             if link_url.scheme not in ["http", "https", ""]:
-                logging.warning(
+                logging.debug(
                     f"Link to different site: {link_url.scheme} != {page_url.scheme}"
                 )
                 continue
@@ -145,10 +153,10 @@ class Scraper:
                 netloc=link_url.netloc or page_url.netloc,
                 path=normpath(new_path),
                 query=urlencode(parse_qsl(link_url.query)),
-                fragment="" if self.remove_fragments else link_url.fragment
+                fragment="" if self.remove_fragments else link_url.fragment,
             )
             if link_url.netloc != page_url.netloc:
-                logging.warning(
+                logging.debug(
                     f"Link to different site: {link_url.netloc} != {page_url.netloc}"
                 )
                 continue
@@ -172,23 +180,32 @@ class Scraper:
         return rp
 
     def scrape(self):
+        min_download_interval = 1.0  # 1s
+
         state = self._init_state()
         rp = self._cteate_robotparser()
+        previous_download_time = 0
         while state.page_queue:
             page = state.page_queue.pop()
-            print("CURRENT_PAGE:", page)
             logging.info(f"CURRENT_PAGE: {page}")
             if not rp or not rp.can_fetch("*", page):
-                logging.warning("Disallow robots.txt")
+                logging.debug("Disallow robots.txt")
                 continue
             try:
                 response = requests.head(
                     page, headers={"Accept": "text/html"}, timeout=60
                 )
             except Exception as e:
-                logging.error(f"Site error:\n{e}")
+                logging.debug(f"Site error:\n{e}")
                 response = None
-            time.sleep(1)
+            time_since_last_download = time.time() - previous_download_time
+            if time_since_last_download < min_download_interval:
+                logging.debug(
+                    "Not enough time passed since the last download, sleeping "
+                    f"for {time_since_last_download:.2f} seconds"
+                )
+                time.sleep(time_since_last_download)
+            previous_download_time = time.time()
 
             file_name = None
             site_error = None
@@ -197,10 +214,10 @@ class Scraper:
             if response and response.ok:
                 content_type = response.headers.get("Content-Type")
                 if content_type and not content_type.startswith("text/html"):
-                    logging.warning(f"Wrong format: {content_type}")
+                    logging.debug(f"Wrong format: {content_type}")
                     site_error = f"Wrong format: {content_type}"
                 elif not content_type:
-                    logging.warning(f"Wrong format: no content type")
+                    logging.debug(f"Wrong format: no content type")
                     site_error = f"Wrong format: no content type"
                 else:
                     file_name = state.get_next_filename()
@@ -208,6 +225,7 @@ class Scraper:
                     options.add_argument("headless")
                     driver = webdriver.Chrome(self.chromedriver_path, options=options)
                     driver.get(page)
+                    self._wait_for_schema(driver)
                     source = driver.page_source
                     driver.quit()
                     self._upload_blob(source, file_name)
@@ -221,18 +239,45 @@ class Scraper:
                     site_error=site_error,
                 ),
             )
-            print(f"htmls saved: {state.counter}")
+            logging.info(f"htmls saved: {state.counter}")
             state.add_urls_to_queue(urls)
             self._save_state(state)
         self._save_state(state)
 
+    def _wait_for_schema(self, driver):
+        max_wait_time = 5.0  # 5s
+        wait_period = 0.1  # 100ms
+
+        start_time = time.time()
+        found_schema = False
+        while time.time() - start_time < max_wait_time:
+            if '<script type="application/ld+json"' in driver.page_source:
+                found_schema = True
+                break
+            time.sleep(wait_period)
+        logging.debug(
+            f"Spend {time.time() - start_time:.2f} seconds waiting for content to "
+            f"appear. Found schema in the end: {found_schema}"
+        )
+
+
+def _configure_logging(args):
+    FORMAT = "%(asctime)-15s %(levelname)s: %(message)s"
+    stream_handler = logging.StreamHandler()
+    stream_handler.setLevel(logging.INFO)
+    logging.basicConfig(
+        format=FORMAT,
+        level=logging.DEBUG,
+        handlers=[
+            stream_handler,
+            logging.FileHandler(f"../scraper_{args.work_dir}.log"),
+        ],
+    )
+
 
 def main():
     args = parse_args()
-    FORMAT = "%(asctime)-15s %(levelname)s: %(message)s"
-    logging.basicConfig(
-        filename=f"../scraper_{args.work_dir}.log", format=FORMAT, level=logging.INFO
-    )
+    _configure_logging(args)
     scraper = Scraper(args)
     scraper.scrape()
 
