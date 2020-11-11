@@ -1,0 +1,50 @@
+
+PREFIX schema: <http://schema.org/>
+CONSTRUCT {
+    ?gene a schema:Gene ;
+        schema:encodesBioChemEntity ?encodesBioChemEntity;
+        schema:isInvolvedInBiologicalProcess ?isInvolvedInBiologicalProcess;
+        schema:isLocatedInSubcellularLocation ?isLocatedInSubcellularLocation;
+        schema:description ?description;
+        schema:identifier ?identifier;
+        schema:name ?name;
+        schema:url ?url .
+}
+WHERE {
+    GRAPH ?g {
+        # Properties from Gene:
+        ?gene a schema:Gene;
+        # OPTIONAL {?gene schema:alternativeOf ?alternativeOf}
+            schema:encodesBioChemEntity ?encodesBioChemEntity;
+        # OPTIONAL {?gene schema:expressedIn ?expressedIn}
+        # OPTIONAL {?gene schema:hasBioolymerSequence ?hasBioolymerSequence}
+        # OPTIONAL {?gene schema:hasStatus ?hasStatus}
+
+        # Properties from BioChemEntity:
+        # OPTIONAL {?gene schema:associatedDisease ?associatedDisease}
+        # OPTIONAL {?gene schema:bioChemInteraction ?bioChemInteraction}
+        # OPTIONAL {?gene schema:bioChemSimilarity ?bioChemSimilarity}
+        # OPTIONAL {?gene schema:biologicalRole ?biologicalRole}
+        # OPTIONAL {?gene schema:hasBioChemEntityPart ?hasBioChemEntityPart}
+        # OPTIONAL {?gene schema:hasMolecularFunction ?hasMolecularFunction}
+        # OPTIONAL {?gene schema:hasRepresentation ?hasRepresentation}
+        # OPTIONAL {?gene schema:isEncodedByBioChemEntity ?isEncodedByBioChemEntity}
+            schema:isInvolvedInBiologicalProcess ?isInvolvedInBiologicalProcess;
+            schema:isLocatedInSubcellularLocation ?isLocatedInSubcellularLocation;
+        # OPTIONAL {?gene schema:isPartOfBioChemEntity ?isPartOfBioChemEntity}
+        # OPTIONAL {?gene schema:taxonomicRange ?taxonomicRange}
+
+        # Properties from Thing:
+        # OPTIONAL {?gene schema:additionalType ?additionalType}
+        # OPTIONAL {?gene schema:alternateName ?alternateName}
+            schema:description ?description;
+        # OPTIONAL {?gene schema:disambiguatingDescription ?disambiguatingDescription}
+            schema:identifier ?identifier;
+        # OPTIONAL {?gene schema:image ?image}
+        # OPTIONAL {?gene schema:mainEntityOfPage ?mainEntityOfPage}
+            schema:name ?name;
+        # OPTIONAL {?gene schema:sameAs ?sameAs}
+        # OPTIONAL {?gene schema:subjectOf ?subjectOf}
+            schema:url ?url .
+    }
+}
