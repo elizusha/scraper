@@ -193,7 +193,7 @@ class Scraper:
                 continue
             try:
                 response = requests.head(
-                    page, headers={"Accept": "text/html"}, timeout=60
+                    page, timeout=60
                 )
             except Exception as e:
                 logging.debug(f"Site error:\n{e}")
@@ -235,7 +235,7 @@ class Scraper:
                 page,
                 ScrapedPageInfo(
                     file_name=file_name,
-                    status_code=response.status_code if response else -1,
+                    status_code=response.status_code if response is not None else -1,
                     site_error=site_error,
                 ),
             )
