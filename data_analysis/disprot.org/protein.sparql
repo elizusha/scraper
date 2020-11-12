@@ -1,0 +1,50 @@
+
+PREFIX schema: <http://schema.org/>
+CONSTRUCT {
+    ?protein a schema:Protein;
+        schema:hasRepresentation ?hasRepresentation;
+        schema:taxonomicRange ?taxonomicRange;
+        schema:identifier ?identifier;
+        schema:name ?name;
+        schema:sameAs ?sameAs.
+        schema:hasSequenceAnnotation ?hasSequenceAnnotation.
+}
+WHERE {
+    GRAPH <https://disprot.org> {
+        ?protein a schema:Protein;
+
+        # Properties from Protein:
+        # OPTIONAL {?protein schema:hasBioPloymerSequence ?hasBioPloymerSequence}
+
+        # Properties from BioChemEntity:
+        # OPTIONAL {?protein schema:associatedDisease ?associatedDisease}
+        # OPTIONAL {?protein schema:bioChemInteraction ?bioChemInteraction}
+        # OPTIONAL {?protein schema:bioChemSimilarity ?bioChemSimilarity}
+        # OPTIONAL {?protein schema:biologicalRole ?biologicalRole}
+        # OPTIONAL {?protein schema:hasBioChemEntityPart ?hasBioChemEntityPart}
+        # OPTIONAL {?protein schema:hasMolecularFunction ?hasMolecularFunction}
+                schema:hasRepresentation ?hasRepresentation;
+        # OPTIONAL {?protein schema:isEncodedByBioChemEntity ?isEncodedByBioChemEntity}
+        # OPTIONAL {?protein schema:isInvolvedInBiologicalProcess ?isInvolvedInBiologicalProcess}
+        # OPTIONAL {?protein schema:isLocatedInSubcellularLocation ?isLocatedInSubcellularLocation}
+        # OPTIONAL {?protein schema:isPartOfBioChemEntity ?isPartOfBioChemEntity}
+                schema:taxonomicRange ?taxonomicRange;
+
+        # Properties from Thing:
+        # OPTIONAL {?protein schema:additionalType ?additionalType}
+        # OPTIONAL {?protein schema:alternateName ?alternateName}
+        # OPTIONAL {?protein schema:description ?description}
+        # OPTIONAL {?protein schema:disambiguatingDescription ?disambiguatingDescription}
+                schema:identifier ?identifier;
+        # OPTIONAL {?protein schema:image ?image}
+        # OPTIONAL {?protein schema:mainEntityOfPage ?mainEntityOfPage}
+                schema:name ?name;
+        # OPTIONAL {?protein schema:potentialAction ?potentialAction}
+                schema:sameAs ?sameAs;
+        # OPTIONAL {?protein schema:subjectOf ?subjectOf}
+        # OPTIONAL {?protein schema:url ?url}
+
+        # Others:
+                schema:hasSequenceAnnotation ?hasSequenceAnnotation;
+    }
+}

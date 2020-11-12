@@ -1,12 +1,9 @@
 #!/usr/bin/env python3
 
-import rdflib
 import json
-import glob
 import argparse
-import urllib
 from google.cloud import storage
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urlunparse
 from extruct.jsonld import JsonLdExtractor
 from rdflib.plugin import register, Parser
 from os.path import basename, join, splitext
@@ -33,7 +30,7 @@ def parse_args():
 def strip_strings(data):
     if isinstance(data, str):
         if data.startswith("http"):
-            return urllib.parse.urlunparse(urllib.parse.urlparse(data))
+            return urlunparse(urlparse(data))
         return data.strip()
     if isinstance(data, list):
         return [strip_strings(element) for element in data]
