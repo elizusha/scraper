@@ -24,6 +24,12 @@ def parse_args():
         default=False,
         help="one graph name for the whole site",
     )
+    parser.add_argument(
+        "--http_to_https",
+        action="store_true",
+        default=False,
+        help="replace http://schema.org to https://schema.org",
+    )
     return parser.parse_args()
 
 
@@ -46,6 +52,7 @@ class Parser:
         self.work_dir = args.work_dir
         self.page_urls = self._get_page_urls()
         self.common_graph = args.common_graph
+        self.http_to_https = args.http_to_https
 
     def _get_page_urls(self):
         blob = self.bucket.blob(join(self.work_dir, "state.json"))
@@ -75,6 +82,9 @@ class Parser:
                 print("No json data")
                 continue
             graph = ConjunctiveGraph(store="IOMemory")
+            data_directory = "nq_data"
+            if self.http_to_https:
+                data_directory += "_https"
             if self.common_graph:
                 public_id = (
                     ""
@@ -85,14 +95,13 @@ class Parser:
                         )
                     ).geturl()
                 )
-                data_directory = "nq_data_common_graph"
+                data_directory += "_common_graph"
             else:
                 public_id = (
                     ""
                     if basename(blob.name) not in self.page_urls
                     else self.page_urls[basename(blob.name)]
                 )
-                data_directory = "nq_data"
             if not public_id:
                 print("File not found")
                 continue
@@ -110,9 +119,10 @@ class Parser:
                 f"{splitext(basename(blob.name))[0]}.nq",
             )
             try:
-                self.bucket.blob(result_path).upload_from_string(
-                    graph.serialize(format="nquads").decode()
-                )
+                nq_data = graph.serialize(format="nquads").decode()
+                if self.http_to_https:
+                    nq_data = nq_data.replace("http://schema.org", "https://schema.org")
+                self.bucket.blob(result_path).upload_from_string(nq_data)
             except Exception:
                 print("Extraction error")
             print("OK")
